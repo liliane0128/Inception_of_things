@@ -1,0 +1,8 @@
+# Vagrant local state (VM ids, SSH keys, disk images) — never commit
+.vagrant/
+
+# Vagrant box packages
+*.box
+
+# macOS
+.DS_Store

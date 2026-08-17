@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+LOGIN      = "liliwang"
+BOX        = "perk/ubuntu-2204-arm64"
+SERVER_IP  = "192.168.56.110"
+AGENT_IP   = "192.168.56.111"
+NETMASK    = "255.255.255.0"
+K3S_TOKEN  = "IoTVagrantK3sToken42"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+  config.vm.box_check_update = false
+
+  config.vm.define "#{LOGIN}S" do |server|
+    server.vm.hostname = "#{LOGIN}S"
+    server.vm.network "private_network", ip: SERVER_IP, netmask: NETMASK
+
+    server.vm.provider "qemu" do |qe|
+      qe.memory = "1024"
+      qe.smp = "1"
+      qe.advanced_network = true
+      qe.net_mode = :socket_vmnet
+      qe.ssh_auto_correct = true
+    end
+
+    server.vm.provision "shell",
+      path: "scripts/install_k3s_server.sh",
+      env: {
+        "NODE_IP"   => SERVER_IP,
+        "K3S_TOKEN" => K3S_TOKEN,
+      }
+  end
+
+  config.vm.define "#{LOGIN}SW" do |worker|
+    worker.vm.hostname = "#{LOGIN}SW"
+    worker.vm.network "private_network", ip: AGENT_IP, netmask: NETMASK
+
+    worker.vm.provider "qemu" do |qe|
+      qe.memory = "1024"
+      qe.smp = "1"
+      qe.advanced_network = true
+      qe.net_mode = :socket_vmnet
+      qe.ssh_auto_correct = true
+    end
+
+    worker.vm.provision "shell",
+      path: "scripts/install_k3s_agent.sh",
+      env: {
+        "NODE_IP"   => AGENT_IP,
+        "SERVER_IP" => SERVER_IP,
+        "K3S_TOKEN" => K3S_TOKEN,
+      }
+  end
+end
