@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-LOGIN      = "liliwang"
+LOGIN      = "lilwang"
 BOX        = "perk/ubuntu-2204-arm64"
 SERVER_IP  = "192.168.56.110"
 AGENT_IP   = "192.168.56.111"
