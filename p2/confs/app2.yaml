@@ -1,0 +1,54 @@
+# Same shape as app1.yaml (see that file for a fully commented version) --
+# only the page content and replica count differ here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app2-html
+data:
+  index.html: |
+    <html>
+      <body>
+        <h1>Hello from app2</h1>
+      </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app2
+spec:
+  # subject requires app2 specifically to run 3 replicas; the Service below
+  # load-balances across all 3 automatically since they share the app: app2
+  # label
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app2
+  template:
+    metadata:
+      labels:
+        app: app2
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: html
+          configMap:
+            name: app2-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app2
+spec:
+  selector:
+    app: app2
+  ports:
+    - port: 80
+      targetPort: 80

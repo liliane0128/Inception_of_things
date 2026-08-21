@@ -1,0 +1,53 @@
+# Ingress = a single entrypoint (here: 192.168.56.110:80) that fans requests
+# out to different backend Services based on the HTTP Host header / path.
+# Routing on 192.168.56.110:
+#   Host: app1.com -> app1 Service
+#   Host: app2.com -> app2 Service
+#   anything else  -> app3 Service (catch-all rule, no `host` set)
+#
+# k3s ships Traefik as its default ingress controller, so no extra install
+# is needed -- this resource is picked up automatically.
+#
+# Note: Traefik doesn't honor the Kubernetes Ingress spec's
+# `spec.defaultBackend` field (a long-standing upstream limitation), so the
+# app3 fallback below is a third rule with no `host` instead of
+# `defaultBackend`. Traefik gives host-matched rules priority over hostless
+# ones, so this rule only catches requests that didn't match
+# app1.com/app2.com.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apps-ingress
+spec:
+  ingressClassName: traefik # explicit, though it's k3s's only/default class
+  rules:
+    - host: app1.com # only matches requests with this exact Host header
+      http:
+        paths:
+          - path: / # match every path under this host
+            pathType: Prefix
+            backend:
+              service:
+                name: app1 # Service to send matching traffic to
+                port:
+                  number: 80 # the Service's port (spec.ports[].port in app1.yaml)
+    - host: app2.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app2
+                port:
+                  number: 80
+    # no `host` here -> matches any Host that didn't hit a rule above
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app3
+                port:
+                  number: 80

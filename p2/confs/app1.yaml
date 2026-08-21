@@ -1,0 +1,59 @@
+# Stock nginx image, only the page content differs between app1/app2/app3 --
+# this ConfigMap overrides nginx's default index.html.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app1-html # referenced below by the Deployment's volumes.configMap.name
+data:
+  # Key becomes the mounted file name (index.html) once this ConfigMap is
+  # mounted as a volume -- nginx serves it as-is from its docroot.
+  index.html: |
+    <html>
+      <body>
+        <h1>Hello from app1</h1>
+      </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1
+spec:
+  replicas: 1 # how many identical pods to keep running
+  selector:
+    # tells the Deployment which pods it owns/manages -- must match
+    # template.metadata.labels below, or the Deployment can't find its pods
+    matchLabels:
+      app: app1
+  template: # pod template: stamped out `replicas` times
+    metadata:
+      labels:
+        app: app1 # matched by selector above, and by the Service's selector
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine # official image, unmodified
+          ports:
+            - containerPort: 80 # nginx's default listen port
+          volumeMounts:
+            # overlay the ConfigMap's index.html onto nginx's docroot,
+            # replacing the image's built-in default page
+            - name: html
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: html # must match volumeMounts[].name above
+          configMap:
+            name: app1-html # the ConfigMap defined at the top of this file
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1 # this is the DNS name/backend name the Ingress routes to
+spec:
+  # routes traffic to any pod whose labels match this -- i.e. the pods
+  # created by the app1 Deployment above
+  selector:
+    app: app1
+  ports:
+    - port: 80 # port the Service itself listens on (used by the Ingress)
+      targetPort: 80 # port forwarded to on the pod (containerPort above)

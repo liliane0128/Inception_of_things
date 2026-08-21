@@ -8,6 +8,7 @@ AGENT_IP   = "192.168.56.111"
 NETMASK    = "255.255.255.0"
 K3S_TOKEN  = "IoTVagrantK3sToken42"
 
+# "2" is the Vagrant configuration syntax version
 Vagrant.configure("2") do |config|
   config.vm.box = BOX
   config.vm.box_check_update = false
