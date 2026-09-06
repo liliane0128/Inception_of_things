@@ -1,0 +1,37 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+LOGIN      = "dbhujoo"
+BOX        = "generic/ubuntu2204"
+SERVER_IP  = "192.168.56.110"
+AGENT_IP   = "192.168.56.111"
+NETMASK    = "255.255.255.0"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+  config.vm.box_check_update = false
+
+  # --- Server ---
+  config.vm.define "#{LOGIN}S" do |server|
+    server.vm.hostname = "#{LOGIN}S"
+    server.vm.network "private_network", ip: SERVER_IP, netmask: NETMASK
+
+    server.vm.provider "virtualbox" do |vb|
+      vb.name   = "#{LOGIN}S"
+      vb.memory = 1024
+      vb.cpus   = 1
+    end
+  end
+
+  # --- ServerWorker ---
+  config.vm.define "#{LOGIN}SW" do |worker|
+    worker.vm.hostname = "#{LOGIN}SW"
+    worker.vm.network "private_network", ip: AGENT_IP, netmask: NETMASK
+
+    worker.vm.provider "virtualbox" do |vb|
+      vb.name   = "#{LOGIN}SW"
+      vb.memory = 1024
+      vb.cpus   = 1
+    end
+  end
+end
