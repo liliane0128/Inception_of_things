@@ -1,0 +1,34 @@
+# --- Vagrant ---
+.vagrant/
+*.box
+
+# --- VirtualBox ---
+*.vbox
+*.vbox-prev
+*.vdi
+*.vmdk
+
+# --- Logs ---
+*.log
+
+# --- Kubernetes / K3s ---
+kubeconfig
+*.kubeconfig
+k3s.yaml
+
+# --- Secrets / tokens (à adapter si tu stockes des tokens dans des fichiers séparés) ---
+.env
+*.token
+
+# --- OS / éditeurs ---
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# --- Docker (utile pour la P3) ---
+*.tar
+
+# --- Divers ---
+*.tmp
+*.bak
