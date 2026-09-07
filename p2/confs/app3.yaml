@@ -1,4 +1,4 @@
-# Same shape as app1.yaml (see that file for a fully commented version).
+# Same shape as app1.yaml.
 # app3 is also the Ingress catch-all target (see ingress.yaml) -- any
 # request whose Host header isn't app1.com/app2.com lands here.
 apiVersion: v1

@@ -1,4 +1,4 @@
-# Same shape as app1.yaml (see that file for a fully commented version) --
+# Same shape as app1.yaml
 # only the page content and replica count differ here.
 apiVersion: v1
 kind: ConfigMap

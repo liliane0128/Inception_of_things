@@ -1,0 +1,33 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+LOGIN     = "lilwang"
+BOX       = "generic/ubuntu2204"
+SERVER_IP = "192.168.56.110"
+NETMASK   = "255.255.255.0"
+
+# No shell provisioner here on purpose: the subject wants
+# scripts/install.sh run by hand (during the defense, the evaluator
+# watches it install Docker/k3d/etc.), not silently baked into `vagrant up`.
+Vagrant.configure("2") do |config|
+  config.vm.box = BOX
+  config.vm.box_check_update = false
+
+  config.vm.define "#{LOGIN}S" do |server|
+    server.vm.hostname = "#{LOGIN}S"
+    server.vm.network "private_network", ip: SERVER_IP, netmask: NETMASK
+
+    server.vm.provider "virtualbox" do |vb|
+      vb.name = "#{LOGIN}S"
+      # Bumped up from p1/p2's 1024MB/1CPU: Argo CD's default install alone
+      # is ~7 pods, plus k3d's own server/agent containers, plus the app.
+      vb.memory = "4096"
+      vb.cpus = 2
+    end
+
+    # Explicit copy instead of relying on the default /vagrant synced folder
+    # (see p2/Vagrantfile) -- keeps this identical across providers/hosts.
+    server.vm.provision "file", source: "scripts", destination: "/home/vagrant/scripts"
+    server.vm.provision "file", source: "confs", destination: "/home/vagrant/confs"
+  end
+end
