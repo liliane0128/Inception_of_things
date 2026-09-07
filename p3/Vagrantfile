@@ -16,6 +16,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "#{LOGIN}S" do |server|
     server.vm.hostname = "#{LOGIN}S"
     server.vm.network "private_network", ip: SERVER_IP, netmask: NETMASK
+    server.vm.synced_folder "../bonus", "/home/vagrant/bonus"
 
     server.vm.provider "virtualbox" do |vb|
       vb.name = "#{LOGIN}S"

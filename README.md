@@ -7,16 +7,54 @@ and adds Argo CD for GitOps-style deployment.
 
 ## Host prerequisites (Linux/VirtualBox)
 
-```bash
-# Debian/Ubuntu — adjust for your distro if different
-sudo apt update
-sudo apt install -y virtualbox
-sudo apt install -y vagrant   # or: https://developer.hashicorp.com/vagrant/install
+### Installing Vagrant on a 42 school machine without root
+
+1. Download the portable Vagrant build
+
+```
+wget https://releases.hashicorp.com/vagrant/2.4.9/vagrant_2.4.9_linux_amd64.zip
 ```
 
-No extra networking setup needed — VirtualBox's `private_network` works
-out of the box, unlike the QEMU/`socket_vmnet` setup the Mac version
-required.
+2. Unzip it
+
+```
+unzip vagrant_2.4.9_linux_amd64.zip
+```
+
+3. Extract the AppImage
+
+```
+chmod +x vagrant
+./vagrant --appimage-extract
+```
+
+4. Move it into place and add it to PATH
+
+```
+mkdir -p ~/.local
+mv squashfs-root ~/.local/vagrant
+echo 'export PATH="$HOME/.local/vagrant/usr/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+5. Fix the missing libcrypt.so.1 error
+
+```
+dnf download libxcrypt-compat
+mkdir -p ~/libxcrypt-extract
+cd ~/libxcrypt-extract
+rpm2cpio ../libxcrypt-compat-4.5.2-3.fc44.x86_64.rpm | cpio -idmv
+mkdir -p ~/.local/vagrant-libs
+cp usr/lib64/libcrypt.so.1 ~/.local/vagrant-libs/
+echo 'vagrant() { LD_LIBRARY_PATH="$HOME/.local/vagrant-libs:$LD_LIBRARY_PATH" "$HOME/.local/vagrant/usr/bin/vagrant" "$@"; }' >> ~/.bashrc
+source ~/.bashrc
+```
+
+6. Verify
+
+```
+vagrant --version
+```
 
 ---
 
@@ -36,7 +74,10 @@ p1/
 ```bash
 cd p1
 vagrant up
-vagrant ssh lilwangS -c "kubectl get nodes -o wide"
+vagrant ssh lilwangS
+# inside the VM:
+kubectl get nodes -o wide
+
 vagrant halt      # stop both VMs
 vagrant destroy -f
 ```
@@ -63,10 +104,13 @@ p2/
 ```bash
 cd p2
 vagrant up
-vagrant ssh lilwangS -c "kubectl get all"
-vagrant ssh lilwangS -c 'curl -H "Host: app1.com" 192.168.56.110'
-vagrant ssh lilwangS -c 'curl -H "Host: app2.com" 192.168.56.110'
-vagrant ssh lilwangS -c 'curl 192.168.56.110'   # default -> app3
+vagrant ssh lilwangS 
+# inside the VM:
+kubectl get all
+curl -H "Host: app1.com" 192.168.56.110
+curl -H "Host: app2.com" 192.168.56.110
+curl 192.168.56.110   # default -> app3
+
 vagrant halt
 vagrant destroy -f
 ```
@@ -78,8 +122,7 @@ runs a **K3d** cluster (K3s-in-Docker) and an **Argo CD** instance inside it
 that continuously syncs an app from a separate public GitHub repo,
 [lilwang_iot](https://github.com/liliane0128/lilwang_iot) — change a file
 there, push, and the running pod updates itself with no manual `kubectl`
-involved. It's a separate repo (not a subfolder of this one) specifically
-so its *name* carries the group login, per the subject's requirement.
+involved.
 
 Two namespaces: `argocd` (Argo CD itself) and `dev` (the deployed app,
 [wil42/playground](https://hub.docker.com/r/wil42/playground)).
@@ -102,7 +145,7 @@ The actual GitOps-watched files (`deployment.yaml`, `service.yaml`) live in
 folder, not in this repo.
 
 `install.sh` is deliberately **not** wired as a Vagrant provisioner — it's
-meant to be run by hand (e.g. during a defense) so the install is visible
+meant to be run by hand so the install is visible
 step by step, not hidden inside `vagrant up`.
 
 ```bash
@@ -116,11 +159,6 @@ kubectl get pods -n dev              # wil-playground pod Running
 curl http://localhost:8888/          # {"status":"ok","message":"v1"}
 ```
 
-(No `binfmt`/QEMU-emulation step needed here: `wil42/playground` is an
-amd64-only image, and this VM runs amd64 natively on VirtualBox — that
-step only applied to the earlier arm64-on-Apple-Silicon dev setup, where it
-also had to be re-run after every VM reboot since it's kernel state. Not a
-concern on this Linux/VirtualBox setup.)
 
 To demonstrate the GitOps rollout (from the host, outside the VM, inside a
 clone of **lilwang_iot** — not this repo):
