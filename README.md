@@ -1,45 +1,43 @@
-# Inception-of-Things
+# Inception of Things
 
-K3s + Vagrant exercises, done in three steps: `p1` sets up a 2-node cluster,
-`p2` runs 3 apps behind an Ingress on a single node, `p3` swaps K3s for K3d
-and adds Argo CD for GitOps-style deployment.
+This project is part of 42's outer-circle curriculum, completed by lilwang and dbhujoo.
 
-
-## Host prerequisites (Linux/VirtualBox)
-
-### Installing Vagrant on a 42 school machine without root
-
-1. Download the portable Vagrant build
+A 42 school project exploring Kubernetes fundamentals through three
+progressively larger exercises, all run inside Vagrant managed VMs.
+It starts with a bare two node K3s cluster, moves on to routing
+several apps through a single Ingress, and ends with a GitOps setup
+where Argo CD keeps a deployment in sync with a git repository, no
+manual `kubectl` involved. A bonus part on top of Part 3 adds a
+self hosted GitLab instance so the whole GitOps loop runs entirely
+inside the cluster.
 
 ```
+p1/      2 node K3s cluster
+p2/      1 node K3s cluster, 3 apps behind an Ingress
+p3/      K3d cluster with Argo CD doing GitOps
+bonus/   self hosted GitLab, wired into Part 3's Argo CD setup
+```
+
+## Host prerequisites
+
+VirtualBox and Vagrant are required. On a 42 school machine, sudo is
+not available, so Vagrant has to be installed by hand as a portable
+build.
+
+```bash
 wget https://releases.hashicorp.com/vagrant/2.4.9/vagrant_2.4.9_linux_amd64.zip
-```
-
-2. Unzip it
-
-```
 unzip vagrant_2.4.9_linux_amd64.zip
-```
-
-3. Extract the AppImage
-
-```
 chmod +x vagrant
 ./vagrant --appimage-extract
-```
-
-4. Move it into place and add it to PATH
-
-```
 mkdir -p ~/.local
 mv squashfs-root ~/.local/vagrant
 echo 'export PATH="$HOME/.local/vagrant/usr/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-5. Fix the missing libcrypt.so.1 error
+Fedora 44 also drops `libcrypt.so.1`, which the bundled Ruby needs:
 
-```
+```bash
 dnf download libxcrypt-compat
 mkdir -p ~/libxcrypt-extract
 cd ~/libxcrypt-extract
@@ -48,27 +46,23 @@ mkdir -p ~/.local/vagrant-libs
 cp usr/lib64/libcrypt.so.1 ~/.local/vagrant-libs/
 echo 'vagrant() { LD_LIBRARY_PATH="$HOME/.local/vagrant-libs:$LD_LIBRARY_PATH" "$HOME/.local/vagrant/usr/bin/vagrant" "$@"; }' >> ~/.bashrc
 source ~/.bashrc
-```
-
-6. Verify
-
-```
 vagrant --version
 ```
 
 ---
 
-## Part 1 — K3s and Vagrant
+## Part 1: K3s and Vagrant
 
-Two VMs: `lilwangS` (K3s server, `192.168.56.110`) and `lilwangSW` (K3s
-agent, `192.168.56.111`), joined into one cluster.
+Two VMs, `lilwangS` as the K3s server at `192.168.56.110` and
+`lilwangSW` as the K3s agent at `192.168.56.111`, joined into one
+cluster.
 
 ```
 p1/
 ├── Vagrantfile
 └── scripts/
-    ├── install_k3s_server.sh   # server node
-    └── install_k3s_agent.sh    # agent node, joins the server
+    ├── install_k3s_server.sh
+    └── install_k3s_agent.sh
 ```
 
 ```bash
@@ -78,22 +72,23 @@ vagrant ssh lilwangS
 # inside the VM:
 kubectl get nodes -o wide
 
-vagrant halt      # stop both VMs
+vagrant halt
 vagrant destroy -f
 ```
 
-## Part 2 — K3s and three simple applications
+## Part 2: K3s and three simple applications
 
-One VM: `lilwangS` (K3s server, `192.168.56.110`) running 3 nginx apps
-behind an Ingress, routed by `Host` header (`app1.com`, `app2.com`,
-anything else → `app3`). `app2` runs 3 replicas.
+One VM, `lilwangS` at `192.168.56.110`, running three nginx apps
+behind an Ingress routed by `Host` header: `app1.com`, `app2.com`,
+and anything else falling through to `app3`. `app2` runs three
+replicas.
 
 ```
 p2/
 ├── Vagrantfile
 ├── scripts/
-│   ├── install_k3s.sh    # k3s server
-│   └── deploy_apps.sh    # kubectl apply confs/
+│   ├── install_k3s.sh
+│   └── deploy_apps.sh
 └── confs/
     ├── app1.yaml
     ├── app2.yaml
@@ -104,49 +99,47 @@ p2/
 ```bash
 cd p2
 vagrant up
-vagrant ssh lilwangS 
+vagrant ssh lilwangS
 # inside the VM:
 kubectl get all
 curl -H "Host: app1.com" 192.168.56.110
 curl -H "Host: app2.com" 192.168.56.110
-curl 192.168.56.110   # default -> app3
+curl 192.168.56.110
 
 vagrant halt
 vagrant destroy -f
 ```
 
-## Part 3 — K3d and Argo CD
+## Part 3: K3d and Argo CD
 
-One VM: `lilwangS`. Instead of K3s installed directly on the VM, this part
-runs a **K3d** cluster (K3s-in-Docker) and an **Argo CD** instance inside it
-that continuously syncs an app from a separate public GitHub repo,
-[lilwang_iot](https://github.com/liliane0128/lilwang_iot) — change a file
-there, push, and the running pod updates itself with no manual `kubectl`
-involved.
+One VM, `lilwangS`. Instead of K3s installed directly on the VM,
+this part runs a K3d cluster, K3s in Docker, with an Argo CD
+instance inside it that continuously syncs an app from a separate
+public GitHub repo,
+[lilwang_iot](https://github.com/liliane0128/lilwang_iot). A change
+pushed there is picked up automatically, no manual `kubectl` step
+needed on the running pod.
 
-Two namespaces: `argocd` (Argo CD itself) and `dev` (the deployed app,
-[wil42/playground](https://hub.docker.com/r/wil42/playground)).
+Two namespaces: `argocd` for Argo CD itself, `dev` for the deployed
+app, [wil42/playground](https://hub.docker.com/r/wil42/playground).
 
 ```
 p3/
-├── Vagrantfile          # boots the VM only — no auto shell provisioner
+├── Vagrantfile
 ├── scripts/
-│   └── install.sh       # run BY HAND inside the VM: Docker, kubectl, k3d,
-│                         # the k3d cluster, Argo CD, and the Application
-└── confs/                # bootstrap manifests applied once by install.sh
+│   └── install.sh       # run by hand inside the VM
+└── confs/
     ├── argocd-namespace.yaml
     ├── dev-namespace.yaml
-    └── application.yaml  # the Argo CD Application CR -- points at the
-                           # lilwang_iot repo, path manifests
+    └── application.yaml
 ```
 
-The actual GitOps-watched files (`deployment.yaml`, `service.yaml`) live in
-[lilwang_iot](https://github.com/liliane0128/lilwang_iot)'s `manifests/`
-folder, not in this repo.
+The GitOps watched files, `deployment.yaml` and `service.yaml`,
+live in `lilwang_iot`'s `manifests/` folder, not in this repo.
 
-`install.sh` is deliberately **not** wired as a Vagrant provisioner — it's
-meant to be run by hand so the install is visible
-step by step, not hidden inside `vagrant up`.
+`install.sh` is deliberately not wired as a Vagrant provisioner, it
+runs by hand so the install stays visible step by step instead of
+hidden inside `vagrant up`.
 
 ```bash
 cd p3
@@ -159,9 +152,8 @@ kubectl get pods -n dev              # wil-playground pod Running
 curl http://localhost:8888/          # {"status":"ok","message":"v1"}
 ```
 
-
-To demonstrate the GitOps rollout (from the host, outside the VM, inside a
-clone of **lilwang_iot** — not this repo):
+To demonstrate the GitOps rollout, from the host, outside the VM,
+inside a clone of `lilwang_iot`, not this repo:
 
 ```bash
 sed -i 's/wil42\/playground:v1/wil42\/playground:v2/' manifests/deployment.yaml
@@ -170,30 +162,23 @@ git commit -m "roll out v2"
 git push
 ```
 
-Use `sed` targeting the exact `image:` string above, or if editing by hand,
-only touch the `image:` line — **not** the `apiVersion: apps/v1` line right
-under the file's header comment. They both contain "v1" but are unrelated:
-`apiVersion` is the Kubernetes API group version (only `apps/v1` is valid
-for a Deployment) and bumping it to `apps/v2` breaks the sync instead of
-rolling out anything.
+Back inside the VM, wait for Argo CD's next sync, or force it with
+`argocd app sync wil-playground` once logged in, then re-run the
+`curl`. The response flips to `"message": "v2"` with no `kubectl`
+command run by hand.
 
-Then back inside the VM, wait for Argo CD's next sync (or force it with
-`argocd app sync wil-playground` once logged in) and re-run the `curl` —
-the response flips to `"message": "v2"` with no `kubectl` command run by
-hand.
-
-If it doesn't roll out after a few minutes, check the Application's sync
-status before assuming the pod is stuck:
+If it doesn't roll out after a few minutes, check the Application's
+sync status before assuming the pod is stuck:
 
 ```bash
 kubectl get application -n argocd wil-playground \
   -o jsonpath='{.status.sync.status}{"\n"}{.status.operationState.message}{"\n"}'
 ```
 
-`OutOfSync` + an error message here (e.g. "server could not find the
-requested resource") means the manifest itself is invalid — Argo CD is
-retrying and failing, not silently ignoring the push. Fix the manifest,
-commit, push again.
+`OutOfSync` with an error message here, for example "server could
+not find the requested resource", means the manifest itself is
+invalid, Argo CD is retrying and failing rather than silently
+ignoring the push. Fix the manifest, commit, push again.
 
 ```bash
 vagrant halt
